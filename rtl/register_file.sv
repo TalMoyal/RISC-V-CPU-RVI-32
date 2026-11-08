@@ -19,6 +19,12 @@ module register_file (
 );
 
 logic [31:0] registers [0:31];
+// simulation only: start with all registers = 0
+initial begin
+    for (int i = 0; i < 32; i++)
+        registers[i] = 32'b0;
+end
+
 
 always_ff @(posedge clk) begin
     if (write_enable) begin   //write enable =1 & clk =1 --->

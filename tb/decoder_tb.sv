@@ -31,7 +31,7 @@ module decoder_tb;
     opcode = 7'b0110011;
     funct3 = 3'b000;
     funct7 = 7'b0000000;
-    imm_sel = 2'b11;
+     
 
     #1;
 
@@ -102,7 +102,7 @@ module decoder_tb;
     opcode = 7'b0010011;
     funct3 = 3'b000;
     funct7 = 7'b0000000;
-    imm_sel = 00;
+ 
     #1;
 
     if (reg_write == 1 &&
@@ -136,7 +136,7 @@ module decoder_tb;
     opcode = 7'b0100011;
     funct3 = 3'b010;
     funct7 = 7'b0000000;
-    imm_sel = 2'b01;
+ 
     #1;
 
     if (reg_write == 0 &&
@@ -148,9 +148,21 @@ module decoder_tb;
         $display("SW PASSED");
     else
         $display("SW FAILED");
+    
 
-        
-// --------------------------------
+    // SB (funct3=000) is not supported -> must behave as NOP
+    funct3 = 3'b000;
+    #1;
+
+    if (reg_write == 0 &&
+        mem_write == 0 &&
+        branch == 0 &&
+        alu_control == 3'b100 &&
+        imm_sel == 2'b11)
+        $display("SB (unsupported) -> NOP PASSED");
+    else
+        $display("SB (unsupported) -> NOP FAILED");
+    // --------------------------------
 // BEQ
 // --------------------------------
 
@@ -174,6 +186,42 @@ module decoder_tb;
 
 // --------------------------------------------------
     // INVALID LW FUNCT3
+    // INVALID ADDI FUNCT3 (XORI)
+    opcode = 7'b0010011;
+    funct3 = 3'b100;
+    funct7 = 7'b0000000;
+
+    #1;
+
+    if (reg_write == 0 &&
+        alu_src == 0 &&
+        mem_write == 0 &&
+        alu_control == 3'b100 &&
+        imm_sel == 2'b11 &&
+        mem_to_reg == 1'b0 &&
+        branch == 1'b0)
+        $display("INVALID ADDI FUNCT3 PASSED");
+    else
+        $display("INVALID ADDI FUNCT3 FAILED");
+
+    // INVALID SW FUNCT3 (SB)
+    opcode = 7'b0100011;
+    funct3 = 3'b000;
+    funct7 = 7'b0000000;
+
+    #1;
+
+    if (reg_write == 0 &&
+        alu_src == 0 &&
+        mem_write == 0 &&
+        alu_control == 3'b100 &&
+        imm_sel == 2'b11 &&
+        mem_to_reg == 1'b0 &&
+        branch == 1'b0)
+        $display("INVALID SW FUNCT3 PASSED");
+    else
+        $display("INVALID SW FUNCT3 FAILED");
+
     opcode = 7'b0000011;
     funct3 = 3'b001;
     funct7 = 7'b0000000;
@@ -189,6 +237,7 @@ module decoder_tb;
         $display("INVALID LW FUNCT3 PASSED");
     else
         $display("INVALID LW FUNCT3 FAILED");
+
     // INVALID OPCODE
     opcode = 7'b1111111;
     funct3 = 3'b000;

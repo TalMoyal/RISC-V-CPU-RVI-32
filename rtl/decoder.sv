@@ -86,11 +86,16 @@ always_comb begin
         // =================
         7'b0010011: begin
 
-        reg_write   = 1;
-        alu_src     = 1;
-        mem_write   = 0;
-        alu_control = 3'b000;
-        imm_sel     = 2'b00;
+        if (funct3 == 3'b000) begin    // ADDI
+            reg_write  = 1'b1;
+            alu_src    = 1'b1;
+            mem_write  = 1'b0;
+            alu_control = 3'b000;
+            imm_sel    = 2'b00;
+            mem_to_reg = 1'b0;
+            branch     = 1'b0;
+        end
+        //place to add some I actions
 
         end
         // =================
@@ -106,25 +111,21 @@ always_comb begin
                 imm_sel     = 2'b00;
                 mem_to_reg  = 1'b1;
             end
-            else begin
-                reg_write   = 0;
-                alu_src     = 0;
-                mem_write   = 0;
-                alu_control = 3'b100;
-                imm_sel     = 2'b11;
-                mem_to_reg  = 1'b0;
-            end
+        //place to add some I actions
         end
 
          // =================
         // SW - S-Type
         // =================
         7'b0100011: begin
-            reg_write = 0;
-            alu_src   = 1;
-            mem_write = 1;
-            alu_control = 3'b000;
-            imm_sel = 2'b01;
+            
+            if (funct3 == 3'b010) begin
+                reg_write = 0;
+                alu_src   = 1;
+                mem_write = 1;
+                alu_control = 3'b000;
+                imm_sel = 2'b01;
+            end
         end
 
 
@@ -144,7 +145,7 @@ always_comb begin
                 end
 
                 default: begin
-                    // Keep default invalid control values
+                    //  DOWN 
                 end
 
             endcase
