@@ -205,7 +205,7 @@ assign branch_taken = id_ex_branch && alu_zero; // will impact next_pc
 assign alu_b = (id_ex_alu_src == 0) ? id_ex_read_data2 : id_ex_immediate;
 
 // ---------- EX/MEM ----------
-logic [31:0] ex__mem_alu_result ;
+logic [31:0] ex_mem_alu_result ;
 logic [31:0] ex_mem_write_data;
 logic [4:0]  ex_mem_rd;
 
@@ -229,7 +229,7 @@ always_ff @(posedge clk) begin
     end
     else 
     begin
-        ex__mem_alu_result <= alu_result;
+        ex_mem_alu_result <= alu_result;
         ex_mem_write_data <= id_ex_read_data2 ;
         ex_mem_rd       <= id_ex_rd ;
 
@@ -239,5 +239,58 @@ always_ff @(posedge clk) begin
  
     end
 end
+
+
+
+//------------------------------------------------
+logic [31:0] memory_read_data ;
+
+
+
+data_memory data_memory_inst (
+    .clk(clk),
+    .mem_write(ex_mem_mem_write),
+    .address(ex_mem_alu_result),         //the result is the new adress
+    .write_data(ex_mem_write_data),      // Data to store in memory (used by SW)
+    .read_data(memory_read_data)  // Data read from memory (used by LW)
+);
+
+
+
+//**************************__________WB____________***************************
+
+
+logic [31:0] mem_wb_alu_result ;
+logic [31:0] mem_wb_read_data;
+logic   mem_wb_mem_to_reg;
+//logic        mem_wb_reg_write;
+//logic [4:0]  mem_wb_rd;
+//logic [31:0] write_back_data;
+
+
+always_ff @(posedge clk) begin
+    if (reset) begin
+
+        mem_wb_alu_result <= 32'd0;
+        mem_wb_read_data <= 32'd0;
+        mem_wb_rd       <= 5'd0;
+        mem_wb_reg_write  <=1'b0;
+        mem_wb_mem_to_reg <= 1'b0;
+
+    end
+    else 
+    begin
+        mem_wb_alu_result <= ex_mem_alu_result ;
+        mem_wb_read_data <= memory_read_data ;
+        mem_wb_rd       <= ex_mem_rd  ;
+        mem_wb_reg_write  <=ex_mem_reg_write ;
+        mem_wb_mem_to_reg <= ex_mem_mem_to_reg;
+ 
+    end
+end
+
+assign write_back_data = (mem_wb_mem_to_reg == 0) ? mem_wb_alu_result : mem_wb_read_data;
+
+
 
 endmodule
