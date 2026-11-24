@@ -33,9 +33,14 @@ always_ff @(posedge clk) begin
     end
 end
 
-assign read_data1 = (rs1 == 0) ? 32'b0 : registers[rs1];
-assign read_data2 = (rs2 == 0) ? 32'b0 : registers[rs2];
-
+assign read_data1 = (rs1 == 0)                 ? 32'b0 :
+        (write_enable && rd != 0 && rd == rs1) ? write_data :
+        registers[rs1]
+    ;
+assign read_data2 = (rs2 == 0)                 ? 32'b0 :
+        (write_enable && rd != 0 && rd == rs2) ? write_data :
+        registers[rs2]
+    ;
 endmodule
 
 

@@ -141,6 +141,9 @@ logic        id_ex_alu_src;
 logic        id_ex_branch;
 
 
+logic [4:0] id_ex_rs1;     // fowarding regs
+logic [4:0] id_ex_rs2;     // fowarding regs
+
 
 
 // ---------- ID/EX register ----------
@@ -162,6 +165,9 @@ always_ff @(posedge clk) begin
         id_ex_branch <= 1'b0;
         id_ex_alu_control <= 3'b100;
 
+        id_ex_rs1  <=  5'd0;  //forward
+        id_ex_rs2  <=  5'd0;  //forward
+
 
     end
     else 
@@ -179,11 +185,57 @@ always_ff @(posedge clk) begin
         id_ex_branch <=  branch ;
         id_ex_alu_control <=alu_control;
 
-        
+        id_ex_rs1  <= rs1;  //forward
+        id_ex_rs2  <= rs2;  //forward
+
     end
 end
 
 
+// ---------- EX/MEM ----------
+logic [31:0] ex_mem_alu_result ;
+logic [31:0] ex_mem_write_data;
+logic [4:0]  ex_mem_rd;
+
+logic        ex_mem_reg_write;
+logic        ex_mem_mem_to_reg;
+logic        ex_mem_mem_write;
+
+
+
+logic [1:0] forward_a;
+logic [1:0] forward_b;
+
+logic [31:0] forwarded_a;
+logic [31:0] forwarded_b;
+
+    always_comb begin
+        if (ex_mem_reg_write ==1 && ex_mem_rd != 0 && ex_mem_rd == id_ex_rs1)
+            forward_a =2'b10;      
+        else if (mem_wb_reg_write ==1 && mem_wb_rd != 0 &&  mem_wb_rd == id_ex_rs1)
+            forward_a =2'b01;
+        else 
+            forward_a =2'b00;
+    end
+
+
+
+    always_comb begin
+        if (ex_mem_reg_write ==1 && ex_mem_rd != 0 && ex_mem_rd == id_ex_rs2)
+            forward_b =2'b10;      
+        else if (mem_wb_reg_write ==1 && mem_wb_rd != 0 &&  mem_wb_rd == id_ex_rs2)
+            forward_b =2'b01;
+        else 
+            forward_b =2'b00;
+    end
+
+assign forwarded_a = (forward_a == 2'b10) ? ex_mem_alu_result :
+                     (forward_a == 2'b01) ? write_back_data   :
+                                            id_ex_read_data1;
+
+assign forwarded_b = (forward_b == 2'b10) ? ex_mem_alu_result :
+                     (forward_b == 2'b01) ? write_back_data   :
+                                            id_ex_read_data2;
 
 //**************************__________EX____________***************************
 
@@ -194,7 +246,7 @@ logic alu_zero;
 logic branch_taken;
  
 alu alu_inst (
-    .a(id_ex_read_data1),
+    .a(forwarded_a),
     .b(alu_b),
     .alu_control(id_ex_alu_control),
     .result(alu_result),
@@ -202,16 +254,8 @@ alu alu_inst (
 );
 
 assign branch_taken = id_ex_branch && alu_zero; // will impact next_pc 
-assign alu_b = (id_ex_alu_src == 0) ? id_ex_read_data2 : id_ex_immediate;
+assign alu_b = (id_ex_alu_src == 0) ? forwarded_b : id_ex_immediate;
 
-// ---------- EX/MEM ----------
-logic [31:0] ex_mem_alu_result ;
-logic [31:0] ex_mem_write_data;
-logic [4:0]  ex_mem_rd;
-
-logic        ex_mem_reg_write;
-logic        ex_mem_mem_to_reg;
-logic        ex_mem_mem_write;
 
 
 
@@ -230,7 +274,7 @@ always_ff @(posedge clk) begin
     else 
     begin
         ex_mem_alu_result <= alu_result;
-        ex_mem_write_data <= id_ex_read_data2 ;
+        ex_mem_write_data <= forwarded_b ;
         ex_mem_rd       <= id_ex_rd ;
 
         ex_mem_reg_write <= id_ex_reg_write;
