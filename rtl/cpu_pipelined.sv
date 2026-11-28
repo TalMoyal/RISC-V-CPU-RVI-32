@@ -10,7 +10,7 @@ logic [31:0] pc;
 logic [31:0] instruction;
 logic [31:0] next_pc;
 
-
+logic load_use_hazard;
 
  program_counter pc_inst (
         .clk(clk),
@@ -24,7 +24,8 @@ instruction_memory instruction_memory_inst (
         .instruction(instruction)
     );
 
-assign next_pc = pc + 32'd4;
+// stall: on load-use hazard hold pc, otherwise advance to the next instruction
+assign next_pc = load_use_hazard ? pc :pc + 32'd4;//enable flag 
   
 
 // ---------- IF/ID ----------
@@ -42,8 +43,11 @@ always_ff @(posedge clk) begin
     end
     else 
     begin
-        if_id_pc          <= pc;
-        if_id_instruction <= instruction;
+        if (load_use_hazard==0)
+        begin
+            if_id_pc          <= pc;
+            if_id_instruction <= instruction;
+        end
     end
 end
 
@@ -134,6 +138,7 @@ logic [31:0] id_ex_read_data2;
 logic [31:0] id_ex_immediate;
 logic [4:0]  id_ex_rd;
 logic [2:0]  id_ex_alu_control;
+
 logic        id_ex_reg_write;
 logic        id_ex_mem_to_reg;
 logic        id_ex_mem_write;
@@ -141,8 +146,10 @@ logic        id_ex_alu_src;
 logic        id_ex_branch;
 
 
+
 logic [4:0] id_ex_rs1;     // fowarding regs
 logic [4:0] id_ex_rs2;     // fowarding regs
+
 
 
 
@@ -172,17 +179,31 @@ always_ff @(posedge clk) begin
     end
     else 
     begin
+
+        if (!load_use_hazard)
+            begin
+                id_ex_reg_write  <=reg_write;
+                id_ex_mem_to_reg <= mem_to_reg;
+                id_ex_mem_write <= mem_write;
+                id_ex_alu_src <= alu_src;
+                id_ex_branch <=  branch ;
+
+            end
+            else begin
+                id_ex_reg_write  <=1'b0;
+                id_ex_mem_to_reg <= 1'b0;
+                id_ex_mem_write <= 1'b0;
+                id_ex_alu_src <= 1'b0;
+                id_ex_branch <= 1'b0;
+
+            end
+
         id_ex_pc         <= if_id_pc ;
         id_ex_read_data1 <= read_data1;
         id_ex_read_data2 <= read_data2;
         id_ex_immediate  <= immediate ;
         id_ex_rd         <=  rd ;
-         
-        id_ex_reg_write  <=reg_write;
-        id_ex_mem_to_reg <= mem_to_reg;
-        id_ex_mem_write <= mem_write;
-        id_ex_alu_src <= alu_src;
-        id_ex_branch <=  branch ;
+
         id_ex_alu_control <=alu_control;
 
         id_ex_rs1  <= rs1;  //forward
@@ -190,6 +211,10 @@ always_ff @(posedge clk) begin
 
     end
 end
+
+// load-use: instruction in EX is a LW whose rd is a source (rs1/rs2) of the instruction in ID
+//assign load_use_hazard = id_ex_mem_to_reg && (id_ex_rd != 0) && (id_ex_rd == rs1 || id_ex_rd == rs2);
+assign load_use_hazard = 1'b0;
 
 
 // ---------- EX/MEM ----------
@@ -311,6 +336,11 @@ logic   mem_wb_mem_to_reg;
 //logic [4:0]  mem_wb_rd;
 //logic [31:0] write_back_data;
 
+logic [4:0] bypass_rd;
+
+ 
+ 
+
 
 always_ff @(posedge clk) begin
     if (reset) begin
@@ -334,7 +364,7 @@ always_ff @(posedge clk) begin
 end
 
 assign write_back_data = (mem_wb_mem_to_reg == 0) ? mem_wb_alu_result : mem_wb_read_data;
-
+ 
 
 
 endmodule
